@@ -1,0 +1,13 @@
+[Unit]
+Description=AsteroidOS Power Manager Daemon
+After=dbus.service
+
+[Service]
+Type=dbus
+BusName=org.asteroidos.powerd
+ExecStart=/usr/bin/asteroid-powerd
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

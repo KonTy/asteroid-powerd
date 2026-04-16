@@ -1,0 +1,318 @@
+#include "dbusinterface.h"
+#include "profilemodel.h"
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QJsonParseError>
+#include <QDebug>
+
+DBusInterface::DBusInterface(ProfileManager *pm, BatteryMonitor *bm)
+    : QDBusAbstractAdaptor(pm)
+    , m_profileManager(pm)
+    , m_batteryMonitor(bm)
+    , m_workoutActive(false)
+{
+    // Connect ProfileManager signals to D-Bus signals
+    connect(m_profileManager, &ProfileManager::activeProfileChanged,
+            this, &DBusInterface::onProfileManagerActiveProfileChanged);
+    connect(m_profileManager, &ProfileManager::profilesChanged,
+            this, &DBusInterface::onProfileManagerProfilesChanged);
+}
+
+QString DBusInterface::GetProfiles()
+{
+    if (m_cachedProfilesJson.isEmpty()) {
+        QJsonArray profilesArray;
+        const QList<PowerProfile> profiles = m_profileManager->profiles();
+        for (const PowerProfile &profile : profiles) {
+            profilesArray.append(profile.toJson());
+        }
+        QJsonDocument doc(profilesArray);
+        m_cachedProfilesJson = QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+    }
+    return m_cachedProfilesJson;
+}
+
+QString DBusInterface::GetActiveProfile()
+{
+    return m_profileManager->activeProfileId();
+}
+
+bool DBusInterface::SetActiveProfile(const QString &id)
+{
+    if (id.isEmpty()) {
+        qWarning() << "SetActiveProfile: empty profile ID";
+        return false;
+    }
+    
+    bool success = m_profileManager->setActiveProfile(id);
+    if (success) {
+        m_profileManager->saveProfiles();
+    }
+    return success;
+}
+
+QString DBusInterface::GetProfile(const QString &id)
+{
+    if (id.isEmpty()) {
+        qWarning() << "GetProfile: empty profile ID";
+        return QString();
+    }
+    
+    PowerProfile profile = m_profileManager->profile(id);
+    if (!profile.isValid()) {
+        qWarning() << "GetProfile: profile not found:" << id;
+        return QString();
+    }
+    
+    QJsonDocument doc(profile.toJson());
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+}
+
+bool DBusInterface::UpdateProfile(const QString &profileJson)
+{
+    if (profileJson.isEmpty()) {
+        qWarning() << "UpdateProfile: empty JSON";
+        return false;
+    }
+    
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(profileJson.toUtf8(), &parseError);
+    
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "UpdateProfile: JSON parse error:" << parseError.errorString();
+        return false;
+    }
+    
+    if (!doc.isObject()) {
+        qWarning() << "UpdateProfile: JSON is not an object";
+        return false;
+    }
+    
+    PowerProfile profile = PowerProfile::fromJson(doc.object());
+    if (!profile.isValid()) {
+        qWarning() << "UpdateProfile: invalid profile data";
+        return false;
+    }
+    
+    bool success = m_profileManager->updateProfile(profile);
+    if (success) {
+        m_profileManager->saveProfiles();
+    }
+    return success;
+}
+
+QString DBusInterface::AddProfile(const QString &profileJson)
+{
+    if (profileJson.isEmpty()) {
+        qWarning() << "AddProfile: empty JSON";
+        return QString();
+    }
+    
+    QJsonParseError parseError;
+    QJsonDocument doc = QJsonDocument::fromJson(profileJson.toUtf8(), &parseError);
+    
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "AddProfile: JSON parse error:" << parseError.errorString();
+        return QString();
+    }
+    
+    if (!doc.isObject()) {
+        qWarning() << "AddProfile: JSON is not an object";
+        return QString();
+    }
+    
+    PowerProfile profile = PowerProfile::fromJson(doc.object());
+    
+    // ID will be auto-generated if empty
+    bool success = m_profileManager->addProfile(profile);
+    if (!success) {
+        qWarning() << "AddProfile: failed to add profile";
+        return QString();
+    }
+    
+    m_profileManager->saveProfiles();
+    
+    // Find the newly added profile to get the (possibly auto-generated) ID
+    QList<PowerProfile> allProfiles = m_profileManager->profiles();
+    if (!allProfiles.isEmpty()) {
+        return allProfiles.last().id;
+    }
+    return profile.id;
+}
+
+bool DBusInterface::DeleteProfile(const QString &id)
+{
+    if (id.isEmpty()) {
+        qWarning() << "DeleteProfile: empty profile ID";
+        return false;
+    }
+    
+    bool success = m_profileManager->deleteProfile(id);
+    if (success) {
+        m_profileManager->saveProfiles();
+    }
+    return success;
+}
+
+bool DBusInterface::StartWorkout(const QString &workoutType)
+{
+    if (workoutType.isEmpty()) {
+        qWarning() << "StartWorkout: empty workout type";
+        return false;
+    }
+    
+    if (m_workoutActive) {
+        qWarning() << "StartWorkout: workout already active";
+        return false;
+    }
+    
+    // Look up the profile assigned to this workout type
+    QString profileId = m_profileManager->workoutProfileId(workoutType);
+    if (profileId.isEmpty()) {
+        qWarning() << "StartWorkout: no profile assigned to workout type:" << workoutType;
+        return false;
+    }
+    
+    if (!m_profileManager->hasProfile(profileId)) {
+        qWarning() << "StartWorkout: assigned profile does not exist:" << profileId;
+        return false;
+    }
+    
+    // Save the current profile so we can restore it later
+    m_previousProfileId = m_profileManager->activeProfileId();
+    m_activeWorkoutType = workoutType;
+    
+    // Switch to the workout profile
+    if (!m_profileManager->setActiveProfile(profileId)) {
+        qWarning() << "StartWorkout: failed to switch to profile:" << profileId;
+        m_previousProfileId.clear();
+        m_activeWorkoutType.clear();
+        return false;
+    }
+    
+    m_workoutActive = true;
+    m_profileManager->saveProfiles();
+    
+    emit WorkoutStarted(workoutType, profileId);
+    qInfo() << "Workout started:" << workoutType << "-> profile:" << profileId;
+    
+    return true;
+}
+
+bool DBusInterface::StopWorkout()
+{
+    if (!m_workoutActive) {
+        qWarning() << "StopWorkout: no active workout";
+        return false;
+    }
+    
+    // Restore the previous profile
+    if (!m_previousProfileId.isEmpty()) {
+        if (!m_profileManager->setActiveProfile(m_previousProfileId)) {
+            qWarning() << "StopWorkout: failed to restore profile:" << m_previousProfileId;
+            // Continue anyway to clear workout state
+        }
+    }
+    
+    m_workoutActive = false;
+    QString workoutType = m_activeWorkoutType;
+    m_activeWorkoutType.clear();
+    m_previousProfileId.clear();
+    
+    m_profileManager->saveProfiles();
+    
+    emit WorkoutStopped();
+    qInfo() << "Workout stopped:" << workoutType;
+    
+    return true;
+}
+
+QString DBusInterface::GetWorkoutProfiles()
+{
+    QJsonObject workoutObj;
+    const QMap<QString, QString> workoutProfiles = m_profileManager->workoutProfiles();
+    
+    for (auto it = workoutProfiles.constBegin(); it != workoutProfiles.constEnd(); ++it) {
+        workoutObj[it.key()] = it.value();
+    }
+    
+    QJsonDocument doc(workoutObj);
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+}
+
+bool DBusInterface::SetWorkoutProfile(const QString &workoutType, const QString &profileId)
+{
+    if (workoutType.isEmpty()) {
+        qWarning() << "SetWorkoutProfile: empty workout type";
+        return false;
+    }
+    
+    bool success = m_profileManager->setWorkoutProfile(workoutType, profileId);
+    if (success) {
+        m_profileManager->saveProfiles();
+    }
+    return success;
+}
+
+QString DBusInterface::GetBatteryHistory(int hours)
+{
+    if (!m_batteryMonitor)
+        return QStringLiteral("[]");
+
+    QVector<BatteryMonitor::BatteryEntry> entries = m_batteryMonitor->history(hours);
+    QJsonArray arr;
+    for (const auto &e : entries) {
+        QJsonObject obj;
+        obj[QLatin1String("timestamp")] = e.timestamp;
+        obj[QLatin1String("level")] = e.level;
+        obj[QLatin1String("charging")] = e.charging;
+        obj[QLatin1String("profile")] = e.activeProfile;
+        arr.append(obj);
+    }
+    QJsonDocument doc(arr);
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+}
+
+QString DBusInterface::GetBatteryPrediction()
+{
+    if (!m_batteryMonitor) {
+        QJsonObject obj;
+        obj[QLatin1String("hours_remaining")] = -1;
+        obj[QLatin1String("confidence")] = QLatin1String("low");
+        QJsonDocument doc(obj);
+        return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+    }
+    QJsonDocument doc(m_batteryMonitor->prediction());
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+}
+
+QString DBusInterface::GetCurrentState()
+{
+    QJsonObject state;
+    state[QLatin1String("active_profile")] = m_profileManager->activeProfileId();
+
+    QJsonObject battery;
+    if (m_batteryMonitor) {
+        battery[QLatin1String("level")] = m_batteryMonitor->level();
+        battery[QLatin1String("charging")] = m_batteryMonitor->charging();
+    }
+    state[QLatin1String("battery")] = battery;
+
+    state[QLatin1String("workout_active")] = m_workoutActive;
+    state[QLatin1String("workout_type")] = m_activeWorkoutType;
+
+    QJsonDocument doc(state);
+    return QString::fromUtf8(doc.toJson(QJsonDocument::Compact));
+}
+
+void DBusInterface::onProfileManagerActiveProfileChanged(const QString &id, const QString &name)
+{
+    emit ActiveProfileChanged(id, name);
+}
+
+void DBusInterface::onProfileManagerProfilesChanged()
+{
+    m_cachedProfilesJson.clear();  // Invalidate cache
+    emit ProfilesChanged();
+}

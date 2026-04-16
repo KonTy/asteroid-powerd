@@ -1,0 +1,20 @@
+# Build directories
+build-host/
+build/
+
+# OE symlinks
+oe-logs
+oe-workdir
+
+# IDE
+.vscode/
+*.user
+*.swp
+*~
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.autogen/

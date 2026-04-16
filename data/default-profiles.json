@@ -1,0 +1,279 @@
+{
+    "active_profile": "smartwatch_indoor",
+    "workout_profiles": {
+        "treadmill": "health_indoor",
+        "outdoor_run": "health_outdoor",
+        "cycling": "performance_outdoor",
+        "hiking": "health_outdoor",
+        "ultra_hike": "ultra_saver_outdoor"
+    },
+    "profiles": [
+        {
+            "id": "ultra_saver_indoor",
+            "name": "Ultra Saver – Indoor",
+            "icon": "ios-battery-dead",
+            "color": "#9E9E9E",
+            "builtin": true,
+            "sensors": {
+                "accelerometer": "low",
+                "gyroscope": "off",
+                "heart_rate": "off",
+                "hrv": "off",
+                "spo2": "off",
+                "barometer": "off",
+                "compass": "off",
+                "ambient_light": "off",
+                "gps": "off"
+            },
+            "radios": {
+                "ble": { "state": "off" },
+                "wifi": { "state": "off" },
+                "lte": { "state": "off" },
+                "nfc": { "state": "off" }
+            },
+            "system": {
+                "background_sync": "off",
+                "always_on_display": false,
+                "tilt_to_wake": false
+            },
+            "automation": {
+                "battery_rules": [],
+                "time_rules": [],
+                "workout_profiles": {}
+            }
+        },
+        {
+            "id": "ultra_saver_outdoor",
+            "name": "Ultra Saver – Outdoor",
+            "icon": "ios-battery-charging",
+            "color": "#795548",
+            "builtin": true,
+            "sensors": {
+                "accelerometer": "low",
+                "gyroscope": "off",
+                "heart_rate": "low",
+                "hrv": "off",
+                "spo2": "off",
+                "barometer": "low",
+                "compass": "on_demand",
+                "ambient_light": "low",
+                "gps": "periodic"
+            },
+            "radios": {
+                "ble": {
+                    "state": "on",
+                    "sync_mode": "interval",
+                    "interval_hours": 10,
+                    "disable_during_sleep": true
+                },
+                "wifi": { "state": "off" },
+                "lte": { "state": "off" },
+                "nfc": { "state": "off" }
+            },
+            "system": {
+                "background_sync": "when_radios_on",
+                "always_on_display": false,
+                "tilt_to_wake": true
+            },
+            "automation": {
+                "battery_rules": [],
+                "time_rules": [],
+                "workout_profiles": {}
+            }
+        },
+        {
+            "id": "health_indoor",
+            "name": "Health – Indoor",
+            "icon": "ios-heart",
+            "color": "#E91E63",
+            "builtin": true,
+            "sensors": {
+                "accelerometer": "medium",
+                "gyroscope": "low",
+                "heart_rate": "high",
+                "hrv": "sleep_only",
+                "spo2": "off",
+                "barometer": "off",
+                "compass": "off",
+                "ambient_light": "low",
+                "gps": "off"
+            },
+            "radios": {
+                "ble": {
+                    "state": "on",
+                    "sync_mode": "interval",
+                    "interval_hours": 2,
+                    "disable_during_sleep": true
+                },
+                "wifi": { "state": "off" },
+                "lte": { "state": "off" },
+                "nfc": { "state": "off" }
+            },
+            "system": {
+                "background_sync": "when_radios_on",
+                "always_on_display": false,
+                "tilt_to_wake": true
+            },
+            "automation": {
+                "battery_rules": [],
+                "time_rules": [],
+                "workout_profiles": {}
+            }
+        },
+        {
+            "id": "health_outdoor",
+            "name": "Health – Outdoor",
+            "icon": "ios-walk",
+            "color": "#4CAF50",
+            "builtin": true,
+            "sensors": {
+                "accelerometer": "medium",
+                "gyroscope": "medium",
+                "heart_rate": "high",
+                "hrv": "sleep_only",
+                "spo2": "off",
+                "barometer": "low",
+                "compass": "on_demand",
+                "ambient_light": "low",
+                "gps": "continuous"
+            },
+            "radios": {
+                "ble": {
+                    "state": "on",
+                    "sync_mode": "interval",
+                    "interval_hours": 1,
+                    "disable_during_sleep": true
+                },
+                "wifi": { "state": "off" },
+                "lte": { "state": "off" },
+                "nfc": { "state": "off" }
+            },
+            "system": {
+                "background_sync": "when_radios_on",
+                "always_on_display": false,
+                "tilt_to_wake": true
+            },
+            "automation": {
+                "battery_rules": [],
+                "time_rules": [],
+                "workout_profiles": {}
+            }
+        },
+        {
+            "id": "smartwatch_indoor",
+            "name": "Smartwatch – Indoor",
+            "icon": "ios-watch",
+            "color": "#2196F3",
+            "builtin": true,
+            "sensors": {
+                "accelerometer": "medium",
+                "gyroscope": "medium",
+                "heart_rate": "medium",
+                "hrv": "off",
+                "spo2": "off",
+                "barometer": "off",
+                "compass": "off",
+                "ambient_light": "low",
+                "gps": "off"
+            },
+            "radios": {
+                "ble": {
+                    "state": "on",
+                    "sync_mode": "manual"
+                },
+                "wifi": {
+                    "state": "on",
+                    "sync_mode": "interval",
+                    "interval_hours": 2,
+                    "disable_during_sleep": true
+                },
+                "lte": { "state": "off" },
+                "nfc": { "state": "off" }
+            },
+            "system": {
+                "background_sync": "auto",
+                "always_on_display": true,
+                "tilt_to_wake": true
+            },
+            "automation": {
+                "battery_rules": [],
+                "time_rules": [],
+                "workout_profiles": {}
+            }
+        },
+        {
+            "id": "smartwatch_outdoor",
+            "name": "Smartwatch – Outdoor",
+            "icon": "ios-sunny",
+            "color": "#FF9800",
+            "builtin": true,
+            "sensors": {
+                "accelerometer": "medium",
+                "gyroscope": "medium",
+                "heart_rate": "medium",
+                "hrv": "off",
+                "spo2": "off",
+                "barometer": "low",
+                "compass": "on_demand",
+                "ambient_light": "high",
+                "gps": "periodic"
+            },
+            "radios": {
+                "ble": {
+                    "state": "on",
+                    "sync_mode": "manual"
+                },
+                "wifi": { "state": "off" },
+                "lte": { "state": "off" },
+                "nfc": { "state": "off" }
+            },
+            "system": {
+                "background_sync": "auto",
+                "always_on_display": true,
+                "tilt_to_wake": true
+            },
+            "automation": {
+                "battery_rules": [],
+                "time_rules": [],
+                "workout_profiles": {}
+            }
+        },
+        {
+            "id": "performance_outdoor",
+            "name": "Performance – Outdoor",
+            "icon": "ios-speedometer",
+            "color": "#F44336",
+            "builtin": true,
+            "sensors": {
+                "accelerometer": "workout",
+                "gyroscope": "workout",
+                "heart_rate": "workout",
+                "hrv": "always",
+                "spo2": "continuous",
+                "barometer": "high",
+                "compass": "continuous",
+                "ambient_light": "high",
+                "gps": "continuous"
+            },
+            "radios": {
+                "ble": {
+                    "state": "on",
+                    "sync_mode": "manual"
+                },
+                "wifi": { "state": "off" },
+                "lte": { "state": "off" },
+                "nfc": { "state": "off" }
+            },
+            "system": {
+                "background_sync": "auto",
+                "always_on_display": true,
+                "tilt_to_wake": true
+            },
+            "automation": {
+                "battery_rules": [],
+                "time_rules": [],
+                "workout_profiles": {}
+            }
+        }
+    ]
+}
